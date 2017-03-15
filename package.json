@@ -1,0 +1,17 @@
+{
+  "name": "airtube",
+  "version": "1.0.0",
+  "description": "Play YouTube videos on AirPlay device",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Deliaz",
+  "license": "MIT",
+  "dependencies": {
+    "airplay-protocol": "^2.0.2",
+    "bonjour": "^3.5.0",
+    "commander": "^2.9.0",
+    "ytdl-core": "^0.10.0"
+  }
+}
