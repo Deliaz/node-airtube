@@ -10,13 +10,13 @@ const ytdl = require('ytdl-core');
 const AirPlay = require('airplay-protocol');
 const ora = require('ora');
 const chalk = require('chalk');
-//TODO bonjour to discover devices
+const bonjour = require('bonjour')();
 
 program
     .version(version)
     .usage('<url> [options]')
     // .option('-v, --verbose', 'enable verbose mode') // TODO verbose output
-    .option('-d, --device <device>', 'hostname or IP', 'apple-tv.local')
+    .option('-d, --device <device>', 'hostname or IP')
     .option('-p, --port <port>', 'port number', 7000)
     .parse(process.argv);
 
@@ -51,6 +51,7 @@ logGetInfo.start();
 ytdl
     .getInfo(url)
     .then(chooseFormat)
+    .then(findDevice)
     .then(playVideo)
     .catch(err => {
         if (err) {
@@ -87,11 +88,25 @@ function chooseFormat(info) {
     );
 }
 
-function playVideo({url, title}) {
+// TODO logging for device discovering
+function findDevice(videoInfo) {
+    return new Promise((resolve, reject) => {
+        if (program.device) {
+            resolve({deviceHost: program.device, videoInfo});
+        } else {
+            const browser = bonjour.find({type: 'airplay'}, devices => {
+                browser.stop();
+                resolve({deviceHost: devices.host, videoInfo});
+            });
+        }
+    });
+}
+
+function playVideo({deviceHost, videoInfo}) {
     return new Promise((resolve, reject) => {
         logConnecting.start();
 
-        const airplayDevice = new AirPlay(program.device, program.port); // TODO not only default
+        const airplayDevice = new AirPlay(deviceHost, program.port);
 
         if (!airplayDevice) {
             logConnecting.fail('AirPlay device connection error.');
@@ -100,16 +115,15 @@ function playVideo({url, title}) {
         }
 
         //TODO airplayDevice.on error
-
-        airplayDevice.play(url, function (err) {
+        airplayDevice.play(videoInfo.url, function (err) {
             if (err) {
                 logConnecting.fail('AirPlay playback error.');
                 reject(err);
                 return;
             }
 
-            logConnecting.succeed(`Connected to ${chalk.blue(program.device + ':' + program.port)}`);
-            logPlay.text = `Playing "${chalk.green(title)}". Press ${chalk.yellow('Ctrl+C')} to stop.`;
+            logConnecting.succeed(`Connected to ${chalk.blue(deviceHost + ':' + program.port)}`);
+            logPlay.text = `Playing "${chalk.green(videoInfo.title)}". Press ${chalk.yellow('Ctrl+C')} to stop.`;
             logPlay.start();
         })
     });
